@@ -16,5 +16,7 @@ namespace PRN232.LMS.Services.Interfaces
         Task<EnrollmentResponse> CreateAsync(CreateEnrollmentRequest request);
         Task<bool> UpdateAsync(int id, UpdateEnrollmentRequest request);
         Task<bool> DeleteAsync(int id);
+        Task<PagedResult<EnrollmentResponse>?> GetByCourseIdAsync(int courseId, QueryParameters query);
+
     }
 }

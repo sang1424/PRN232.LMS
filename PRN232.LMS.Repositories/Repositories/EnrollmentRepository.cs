@@ -148,5 +148,85 @@ namespace PRN232.LMS.Repositories.Repositories
             await _context.SaveChangesAsync();
             return true;
         }
+        public async Task<PagedResult<EnrollmentBusinessModel>?> GetByCourseIdAsync(
+           int courseId, QueryParameters query)
+        {
+            // Kiểm tra course có tồn tại không
+            var courseExists = await _context.Courses
+                .AnyAsync(x => x.CourseId == courseId);
+            if (!courseExists) return null;
+
+            var q = _context.Enrollments
+                .Where(x => x.CourseId == courseId)
+                .AsQueryable();
+
+            // Search
+            if (!string.IsNullOrEmpty(query.Search))
+                q = q.Where(x => x.Status.Contains(query.Search));
+
+            // Expand
+            var expandList = (query.Expand ?? "").ToLower()
+                .Split(',', StringSplitOptions.RemoveEmptyEntries);
+            bool expandStudent = expandList.Contains("student");
+            bool expandCourse = expandList.Contains("course");
+
+            if (expandStudent) q = q.Include(x => x.Student);
+            if (expandCourse) q = q.Include(x => x.Course);
+
+            // Sort
+            q = query.Sort?.ToLower() switch
+            {
+                "enrolldate" => q.OrderBy(x => x.EnrollDate),
+                "-enrolldate" => q.OrderByDescending(x => x.EnrollDate),
+                "status" => q.OrderBy(x => x.Status),
+                "-status" => q.OrderByDescending(x => x.Status),
+                _ => q.OrderBy(x => x.EnrollmentId)
+            };
+
+            var totalItems = await q.CountAsync();
+            var rawItems = await q
+                .Skip((query.Page - 1) * query.Size)
+                .Take(query.Size)
+                .ToListAsync();
+
+            return new PagedResult<EnrollmentBusinessModel>
+            {
+                Items = rawItems.Select(x => MapToBusinessModel(x, expandStudent, expandCourse)),
+                Page = query.Page,
+                PageSize = query.Size,
+                TotalItems = totalItems,
+                TotalPages = (int)Math.Ceiling(totalItems / (double)query.Size)
+            };
+        }
+
+        // ── HELPER MAPPER ─────────────────────────────────────────────────
+
+        private static EnrollmentBusinessModel MapToBusinessModel(
+          Enrollment x, bool includeStudent, bool includeCourse) =>
+          new()
+          {
+              EnrollmentId = x.EnrollmentId,
+              StudentId = x.StudentId,
+              CourseId = x.CourseId,
+              EnrollDate = x.EnrollDate,
+              Status = x.Status,
+              Student = includeStudent && x.Student != null
+                  ? new StudentBusinessModel
+                  {
+                      StudentId = x.Student.StudentId,
+                      FullName = x.Student.FullName,
+                      Email = x.Student.Email,
+                      DateOfBirth = x.Student.DateOfBirth
+                  }
+                  : null,
+              Course = includeCourse && x.Course != null
+                  ? new CourseBusinessModel
+                  {
+                      CourseId = x.Course.CourseId,
+                      CourseName = x.Course.CourseName,
+                      SemesterId = x.Course.SemesterId
+                  }
+                  : null
+          };
     }
 }

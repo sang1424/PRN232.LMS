@@ -15,5 +15,6 @@ namespace PRN232.LMS.Repositories.Interfaces
         Task<EnrollmentBusinessModel> CreateAsync(EnrollmentBusinessModel model);
         Task<bool> UpdateAsync(EnrollmentBusinessModel model);
         Task<bool> DeleteAsync(int id);
+        Task<PagedResult<EnrollmentBusinessModel>> GetByCourseIdAsync(int courseId, QueryParameters query);
     }
 }

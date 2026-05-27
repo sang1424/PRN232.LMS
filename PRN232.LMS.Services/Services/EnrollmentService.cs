@@ -80,5 +80,21 @@ namespace PRN232.LMS.Services.Services
                     SemesterId = x.Course.SemesterId
                 }
             };
+        public async Task<PagedResult<EnrollmentResponse>?> GetByCourseIdAsync(
+            int courseId, QueryParameters query)
+        {
+            var result = await _repo.GetByCourseIdAsync(courseId, query);
+            if (result == null) return null;
+
+            return new PagedResult<EnrollmentResponse>
+            {
+                Items = result.Items.Select(Map),
+                Page = result.Page,
+                PageSize = result.PageSize,
+                TotalItems = result.TotalItems,
+                TotalPages = result.TotalPages
+            };
+        }
+
     }
 }
