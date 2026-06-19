@@ -3,6 +3,7 @@ using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using PRN232.LMS.Repositories.Data;
 
@@ -11,9 +12,11 @@ using PRN232.LMS.Repositories.Data;
 namespace PRN232.LMS.Repositories.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    partial class ApplicationDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260619115724_AddUserTable")]
+    partial class AddUserTable
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -4769,14 +4772,14 @@ namespace PRN232.LMS.Repositories.Migrations
                         new
                         {
                             UserId = 1,
-                            PasswordHash = "$2a$11$RDFUJvuWpTkNJIYLJMejW.EsFiC8Li62P56fL8iTMioCaPo8ZZuge",
+                            PasswordHash = "$2a$11$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhWy",
                             Role = "Admin",
                             Username = "admin"
                         },
                         new
                         {
                             UserId = 2,
-                            PasswordHash = "$2a$11$aQM52gvycMpupMGFg/I2lOD3eXY2oCKkhglb2Ruw6zQ.Z3Fa5gyLO",
+                            PasswordHash = "$2a$11$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhWy",
                             Role = "User",
                             Username = "user1"
                         });

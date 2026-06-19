@@ -1,55 +1,65 @@
-﻿using PRN232.LMS.Repositories.Entities;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Reflection.Emit;
-using System.Text;
-using System.Threading.Tasks;
+﻿
+
 using Microsoft.EntityFrameworkCore;
+using PRN232.LMS.Repositories.Entities;
 
 namespace PRN232.LMS.Repositories.Data
 {
     public class ApplicationDbContext : DbContext
     {
-        public ApplicationDbContext(
-            DbContextOptions<ApplicationDbContext> options)
-            : base(options)
-        {
-        }
+        public ApplicationDbContext(DbContextOptions<ApplicationDbContext> options)
+            : base(options) { }
 
         public DbSet<Student> Students => Set<Student>();
-
         public DbSet<Course> Courses => Set<Course>();
-
         public DbSet<Semester> Semesters => Set<Semester>();
-
         public DbSet<Subject> Subjects => Set<Subject>();
-
         public DbSet<Enrollment> Enrollments => Set<Enrollment>();
+        public DbSet<User> Users => Set<User>();   // MỚI
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             // ── Constraints ──────────────────────────────────────────────
             modelBuilder.Entity<Student>()
-                .HasIndex(x => x.Email)
-                .IsUnique();
+                .HasIndex(x => x.Email).IsUnique();
+
+            modelBuilder.Entity<User>()
+                .HasIndex(x => x.Username).IsUnique();
 
             modelBuilder.Entity<Enrollment>()
-                .HasOne(x => x.Student)
-                .WithMany(x => x.Enrollments)
+                .HasOne(x => x.Student).WithMany(x => x.Enrollments)
                 .HasForeignKey(x => x.StudentId);
 
             modelBuilder.Entity<Enrollment>()
-                .HasOne(x => x.Course)
-                .WithMany(x => x.Enrollments)
+                .HasOne(x => x.Course).WithMany(x => x.Enrollments)
                 .HasForeignKey(x => x.CourseId);
 
             modelBuilder.Entity<Course>()
-                .HasOne(x => x.Semester)
-                .WithMany(x => x.Courses)
+                .HasOne(x => x.Semester).WithMany(x => x.Courses)
                 .HasForeignKey(x => x.SemesterId);
 
-            // ── Seed: 5 Semesters ─────────────────────────────────────────
+            // ── Seed Users (password đã hash bằng BCrypt) ─────────────────
+            // "Admin@123" → BCrypt hash
+            modelBuilder.Entity<User>().HasData(
+                new User
+                {
+                    UserId = 1,
+                    Username = "admin",
+                    PasswordHash = "$2a$11$RDFUJvuWpTkNJIYLJMejW.EsFiC8Li62P56fL8iTMioCaPo8ZZuge",
+                    Role = "Admin"
+                },
+                new User
+                {
+                    UserId = 2,
+                    Username = "user1",
+                    PasswordHash = "$2a$11$aQM52gvycMpupMGFg/I2lOD3eXY2oCKkhglb2Ruw6zQ.Z3Fa5gyLO",
+                    Role = "User"
+                }
+            );
+            // Password mặc định Admin: Admin@123
+            // Password mặc định User1: User@123
+
+            // ── Seed Semesters ────────────────────────────────────────────
             modelBuilder.Entity<Semester>().HasData(
                 new Semester { SemesterId = 1, SemesterName = "Spring 2023", StartDate = new DateTime(2023, 1, 10), EndDate = new DateTime(2023, 5, 20) },
                 new Semester { SemesterId = 2, SemesterName = "Summer 2023", StartDate = new DateTime(2023, 6, 1), EndDate = new DateTime(2023, 8, 31) },
@@ -58,7 +68,6 @@ namespace PRN232.LMS.Repositories.Data
                 new Semester { SemesterId = 5, SemesterName = "Fall 2024", StartDate = new DateTime(2024, 9, 2), EndDate = new DateTime(2025, 1, 10) }
             );
 
-            // ── Seed: 10 Subjects ─────────────────────────────────────────
             modelBuilder.Entity<Subject>().HasData(
                 new Subject { SubjectId = 1, SubjectCode = "CS101", SubjectName = "Introduction to Programming", Credit = 3 },
                 new Subject { SubjectId = 2, SubjectCode = "CS102", SubjectName = "Data Structures", Credit = 3 },
@@ -72,7 +81,6 @@ namespace PRN232.LMS.Repositories.Data
                 new Subject { SubjectId = 10, SubjectCode = "CS404", SubjectName = "Cloud Computing", Credit = 3 }
             );
 
-            // ── Seed: 20 Courses (4 per semester) ────────────────────────
             modelBuilder.Entity<Course>().HasData(
                 new Course { CourseId = 1, CourseName = "Intro to Programming – S23", SemesterId = 1 },
                 new Course { CourseId = 2, CourseName = "Data Structures – S23", SemesterId = 1 },
@@ -96,44 +104,37 @@ namespace PRN232.LMS.Repositories.Data
                 new Course { CourseId = 20, CourseName = "Cloud Computing – F24", SemesterId = 5 }
             );
 
-            // ── Seed: 50 Students ─────────────────────────────────────────
             var students = new List<Student>();
             var firstNames = new[] { "An", "Bình", "Chi", "Dung", "Em", "Phong", "Giang", "Hoa", "Khánh", "Lan" };
             var lastNames = new[] { "Nguyễn", "Trần", "Lê", "Phạm", "Hoàng", "Vũ", "Đặng", "Bùi", "Đỗ", "Hồ" };
             for (int i = 1; i <= 50; i++)
             {
-                var fn = firstNames[(i - 1) % 10];
-                var ln = lastNames[(i - 1) % 10];
                 students.Add(new Student
                 {
                     StudentId = i,
-                    FullName = $"{ln} {fn} {i}",
+                    FullName = $"{lastNames[(i - 1) % 10]} {firstNames[(i - 1) % 10]} {i}",
                     Email = $"student{i}@lms.edu.vn",
                     DateOfBirth = new DateTime(2000 + (i % 5), (i % 12) + 1, (i % 28) + 1)
                 });
             }
             modelBuilder.Entity<Student>().HasData(students);
 
-            // ── Seed: 500 Enrollments ─────────────────────────────────────
-            // Mỗi student đăng ký 10 courses (phân bổ đều)
             var statuses = new[] { "Active", "Completed", "Dropped" };
             var enrollments = new List<Enrollment>();
             int enrollId = 1;
             for (int s = 1; s <= 50; s++)
-            {
                 for (int c = 1; c <= 10; c++)
                 {
-                    var courseId = ((s + c - 2) % 20) + 1;
                     enrollments.Add(new Enrollment
                     {
-                        EnrollmentId = enrollId++,
+                        EnrollmentId = enrollId,
                         StudentId = s,
-                        CourseId = courseId,
-                        EnrollDate = new DateTime(2023, 1, 1).AddDays((enrollId % 365)),
+                        CourseId = ((s + c - 2) % 20) + 1,
+                        EnrollDate = new DateTime(2023, 1, 1).AddDays(enrollId % 365),
                         Status = statuses[enrollId % 3]
                     });
+                    enrollId++;
                 }
-            }
             modelBuilder.Entity<Enrollment>().HasData(enrollments);
 
             base.OnModelCreating(modelBuilder);
