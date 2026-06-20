@@ -10,6 +10,8 @@ namespace PRN232.LMS.Services.Validators
 {
     public class CreateStudentValidator : AbstractValidator<CreateStudentRequest>
     {
+        private const string AllowedDomain = "student.lms.edu.vn";
+
         public CreateStudentValidator()
         {
             RuleFor(x => x.FullName)
@@ -20,7 +22,10 @@ namespace PRN232.LMS.Services.Validators
             RuleFor(x => x.Email)
                 .NotEmpty().WithMessage("Email is required")
                 .EmailAddress().WithMessage("Invalid email format")
-                .MaximumLength(100);
+                .MaximumLength(100)
+                // Custom validation rule: school-domain email only
+                .Must(BelongToSchoolDomain)
+                    .WithMessage($"Email must use the school domain: '@{AllowedDomain}' (e.g. yourname@{AllowedDomain})");
 
             RuleFor(x => x.DateOfBirth)
                 .NotEmpty().WithMessage("Date of birth is required")
@@ -28,6 +33,15 @@ namespace PRN232.LMS.Services.Validators
                     .WithMessage("Student must be at least 16 years old")
                 .GreaterThan(new DateTime(1900, 1, 1))
                     .WithMessage("Date of birth is not valid");
+        }
+
+        private static bool BelongToSchoolDomain(string email)
+        {
+            if (string.IsNullOrWhiteSpace(email))
+                return true; // NotEmpty() rule already reports this case
+
+            return email.Trim()
+                .EndsWith($"@{AllowedDomain}", StringComparison.OrdinalIgnoreCase);
         }
     }
 }

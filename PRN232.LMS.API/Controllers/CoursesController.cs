@@ -1,4 +1,6 @@
-﻿using Microsoft.AspNetCore.Mvc;
+﻿using Asp.Versioning;
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
 using PRN232.LMS.API.Common;
 using PRN232.LMS.Repositories.Helpers;
 using PRN232.LMS.Services.Interfaces;
@@ -9,7 +11,9 @@ using PRN232.LMS.Services.Services;
 namespace PRN232.LMS.API.Controllers
 {
     [ApiController]
-    [Route("api/courses")]
+    [ApiVersion("1.0")]
+    [Route("api/v{version:apiVersion}/courses")]
+    [Authorize]
     public class CoursesController : ControllerBase
     {
         private readonly ICourseService _courseService;
@@ -23,7 +27,7 @@ namespace PRN232.LMS.API.Controllers
             _enrollmentService = enrollmentService;
         }
 
-        // ── GET /api/courses ──────────────────────────────────────────────
+        // ── GET /api/v1/courses ──────────────────────────────────────────────
         [HttpGet]
         public async Task<IActionResult> GetAll([FromQuery] QueryParameters query)
         {
@@ -78,9 +82,9 @@ namespace PRN232.LMS.API.Controllers
             });
         }
 
-        // ── GET /api/courses/{id} ─────────────────────────────────────────
-        [HttpGet("{id}")]
-        public async Task<IActionResult> GetById(int id)
+        // ── GET /api/v1/courses/{id} ─────────────────────────────────────────
+        [HttpGet("{id:int}", Name = "GetCourseById")]
+        public async Task<IActionResult> GetById([FromRoute] int id)
         {
             var item = await _courseService.GetByIdAsync(id);
             if (item == null)
@@ -92,10 +96,10 @@ namespace PRN232.LMS.API.Controllers
             return Ok(new ApiResponse<CourseResponse> { Success = true, Data = item });
         }
 
-        // ── GET /api/courses/{id}/enrollments?expand=student ──────────────
-        [HttpGet("{id}/enrollments")]
+        // ── GET /api/v1/courses/{id}/enrollments ─────────────────────────────
+        [HttpGet("{id:int}/enrollments")]
         public async Task<IActionResult> GetEnrollments(
-            int id,
+            [FromRoute] int id,
             [FromQuery] QueryParameters query)
         {
             var result = await _enrollmentService.GetByCourseIdAsync(id, query);
@@ -122,20 +126,42 @@ namespace PRN232.LMS.API.Controllers
             });
         }
 
-        // ── POST /api/courses ─────────────────────────────────────────────
+        // ── POST /api/v1/courses ─────────────────────────────────────────────
         [HttpPost]
-        public async Task<IActionResult> Create(CreateCourseRequest request)
+        public async Task<IActionResult> Create([FromBody] CreateCourseRequest request)
         {
+            if (!ModelState.IsValid)
+                return BadRequest(new ApiResponse<object>
+                {
+                    Success = false,
+                    Message = "Validation failed",
+                    Errors = ModelState.Values
+                        .SelectMany(v => v.Errors)
+                        .Select(e => e.ErrorMessage)
+                });
+
             var created = await _courseService.CreateAsync(request);
-            return CreatedAtAction(nameof(GetById),
-                new { id = created.CourseId },
+            return CreatedAtRoute("GetCourseById",
+                new { version = "1", id = created.CourseId },
                 new ApiResponse<CourseResponse> { Success = true, Data = created });
         }
 
-        // ── PUT /api/courses/{id} ─────────────────────────────────────────
-        [HttpPut("{id}")]
-        public async Task<IActionResult> Update(int id, UpdateCourseRequest request)
+        // ── PUT /api/v1/courses/{id} ─────────────────────────────────────────
+        [HttpPut("{id:int}")]
+        public async Task<IActionResult> Update(
+            [FromRoute] int id,
+            [FromBody] UpdateCourseRequest request)
         {
+            if (!ModelState.IsValid)
+                return BadRequest(new ApiResponse<object>
+                {
+                    Success = false,
+                    Message = "Validation failed",
+                    Errors = ModelState.Values
+                        .SelectMany(v => v.Errors)
+                        .Select(e => e.ErrorMessage)
+                });
+
             var updated = await _courseService.UpdateAsync(id, request);
             if (!updated)
                 return NotFound(new ApiResponse<object>
@@ -146,9 +172,10 @@ namespace PRN232.LMS.API.Controllers
             return Ok(new ApiResponse<object> { Success = true, Message = "Updated successfully" });
         }
 
-        // ── DELETE /api/courses/{id} ──────────────────────────────────────
-        [HttpDelete("{id}")]
-        public async Task<IActionResult> Delete(int id)
+        // ── DELETE /api/v1/courses/{id} — CHỈ ADMIN ──────────────────────────
+        [HttpDelete("{id:int}")]
+        [Authorize(Roles = "Admin")]
+        public async Task<IActionResult> Delete([FromRoute] int id)
         {
             var deleted = await _courseService.DeleteAsync(id);
             if (!deleted)
